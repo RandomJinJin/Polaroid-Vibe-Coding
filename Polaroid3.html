@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Polaroid High-Res Interaction</title>
+<style>
+  body {
+    margin: 0;
+    background: #111;
+    overflow: hidden;
+  }
+  #mainCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+  }
+  /* 这里只控制显示大小 (Display Size)。
+     画布的实际分辨率 (Render Resolution) 在 JS 中设置为 640x480 以匹配摄像头。
+  */
+  #videoCanvas {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 240px;  /* CSS显示宽度 */
+    height: 180px; /* CSS显示高度 (4:3比例) */
+    border: 1px solid #333;
+    background: #000;
+    z-index: 2;
+    border-radius: 8px;
+    /* 解决镜像反转时的视觉问题 */
+    transform: scaleX(-1); 
+  }
+</style>
+</head>
+<body>
+
+<video id="video" autoplay playsinline style="display:none;"></video>
+<canvas id="mainCanvas"></canvas>
+<canvas id="videoCanvas"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+const video = document.getElementById('video');
+const mainCanvas = document.getElementById('mainCanvas');
+const mainCtx = mainCanvas.getContext('2d');
+const videoCanvas = document.getElementById('videoCanvas');
+const videoCtx = videoCanvas.getContext('2d');
+
+// ================= 修复 1: 强制对齐分辨率 =================
+// 摄像头标准输出通常是 640x480 或 1280x720。
+// 我们强制 Canvas 内部分辨率为 640x480，这样 MediaPipe 的坐标点才能完美对应。
+const CAM_W = 640;
+const CAM_H = 480;
+videoCanvas.width = CAM_W;
+videoCanvas.height = CAM_H;
+
+function resize() {
+  mainCanvas.width = innerWidth;
+  mainCanvas.height = innerHeight;
+}
+resize();
+addEventListener('resize', resize);
+
+// ================= 参数 =================
+const FOLLOW_GAIN = 0.22;
+const INERTIA_FORCE = 0.08;
+const INERTIA_DAMP = 0.85;
+const SMOOTH = 0.15;
+
+const N = 9;
+const pieceW = 300; 
+const pieceH = 200; 
+const padTop = 14;
+const padSide = 14;
+const padBottom = 50; 
+const totalW = pieceW; 
+const totalH = pieceH; 
+const imgW = totalW - padSide * 2;
+const imgH = totalH - padTop - padBottom;
+const scatterOffset = 700;
+
+// ================= 修复 2: 高清缓存配置 =================
+// 缓存倍率：2 表示离屏 Canvas 是实际尺寸的 2 倍大。
+// 这样即使放大 2 倍显示，像素也是 1:1 的，不会模糊。
+const CACHE_SCALE = 2.5; 
+
+const pieces = [];
+const stackBase = { x: innerWidth/2, y: innerHeight/2, targetX: innerWidth/2, targetY: innerHeight/2, vx:0, vy:0 };
+let activeFocusPiece = null;
+
+const imageUrls = [
+  'images/pic1.jpg','images/pic2.jpg','images/pic3.jpg',
+  'images/pic4.jpg','images/pic5.jpg','images/pic6.jpg',
+  'images/pic7.jpg','images/pic8.jpg','images/pic9.jpg'
+];
+
+// ================= 离屏渲染 (高清 + 景深) =================
+function createCardCache(img, isBlurred) {
+  const c = document.createElement('canvas');
+  // 关键：创建巨大的 Canvas
+  c.width = totalW * CACHE_SCALE;
+  c.height = totalH * CACHE_SCALE;
+  const ctx = c.getContext('2d');
+
+  // 统一放大坐标系，之后的绘制代码不需要改动坐标，只需画在这个放大后的坐标系里
+  ctx.scale(CACHE_SCALE, CACHE_SCALE);
+
+  if (isBlurred) {
+    // 模糊半径也要随倍率增加，否则看起来模糊度不够
+    ctx.filter = `blur(${5 * CACHE_SCALE}px)`; 
+  }
+
+  // 1. 绘制白底
+  ctx.fillStyle = '#fdfdfd';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, totalW, totalH, 6); // 坐标依然使用原始尺寸，因为scale了
+  ctx.fill();
+
+  // 2. 绘制图片
+  if (img && img.complete) {
+    // 使用 createPattern 或 clip 来防止图片圆角溢出（可选，这里简单绘制）
+    ctx.drawImage(img, padSide, padTop, imgW, imgH);
+  } else {
+    ctx.fillStyle = '#e0c04f';
+    ctx.fillRect(padSide, padTop, imgW, imgH);
+  }
+  
+  return c;
+}
+
+// 初始化
+for (let i=0;i<N;i++){
+  const img = new Image();
+  const p = {
+    w: totalW,
+    h: totalH,
+    x: stackBase.x,
+    y: stackBase.y,
+    targetX: stackBase.x,
+    targetY: stackBase.y,
+    stackOffsetX: (Math.random()-0.5)*50,
+    stackOffsetY: (Math.random()-0.5)*40,
+    rotation: (Math.random()-0.5)*0.25,
+    targetRotation: (Math.random()-0.5)*0.25,
+    scale: 1,
+    targetScale: 1,
+    minScale: 1,
+    maxScale: 2.2, // 放大倍数略小于缓存倍数，保证绝对清晰
+    img: img,
+    cacheSharp: null,
+    cacheBlur: null
+  };
+
+  const initCache = () => {
+    p.cacheSharp = createCardCache(img, false);
+    p.cacheBlur = createCardCache(img, true);
+  }
+
+  img.onload = initCache;
+  initCache(); // 先生成占位
+
+  img.src = imageUrls[i % imageUrls.length];
+  pieces.push(p);
+}
+
+// ================= 状态 =================
+let isStacked = true;
+let lastHandState = 'fist';
+let handVisible = false;
+let landmarks = null;
+let grabStart = null;
+let baseStart = null;
+
+// ================= MediaPipe =================
+const hands = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+// 优化模型参数
+hands.setOptions({
+  maxNumHands:1, 
+  modelComplexity:1, 
+  minDetectionConfidence:0.6, 
+  minTrackingConfidence:0.6
+});
+
+hands.onResults(res=>{
+  if(!res.multiHandLandmarks?.length){
+    handVisible=false; landmarks=null; grabStart=null; activeFocusPiece=null; return;
+  }
+  handVisible=true;
+  landmarks=res.multiHandLandmarks[0];
+
+  // 手势判定
+  const isFist = landmarks[8].y > landmarks[5].y;
+  const isOpen = !isFist && landmarks[12].y < landmarks[9].y; // 简单判定
+
+  let state = isFist ? 'fist' : (isOpen ? 'open' : 'none');
+
+  // ===== 状态切换 =====
+  if(state!==lastHandState){
+    lastHandState=state;
+
+    if(state==='open'){
+      isStacked=false;
+      activeFocusPiece = null;
+      pieces.forEach(p=>{
+        p.targetX = stackBase.x + (Math.random()-0.5)*scatterOffset;
+        p.targetY = stackBase.y + (Math.random()-0.5)*scatterOffset;
+      });
+    }
+
+    if(state==='fist'){
+      isStacked=true;
+      activeFocusPiece = null;
+      grabStart={x:landmarks[0].x, y:landmarks[0].y};
+      baseStart={x:stackBase.x, y:stackBase.y};
+      pieces.forEach(p=>{
+        p.targetScale=p.minScale;
+        p.stackOffsetX=(Math.random()-0.5)*50;
+        p.stackOffsetY=(Math.random()-0.5)*40;
+      });
+    }
+  }
+
+  // ===== 拖拽 =====
+  if(isStacked && state==='fist' && grabStart){
+    const dx=(landmarks[0].x-grabStart.x)*mainCanvas.width*FOLLOW_GAIN;
+    const dy=(landmarks[0].y-grabStart.y)*mainCanvas.height*FOLLOW_GAIN;
+    stackBase.targetX=baseStart.x+dx;
+    stackBase.targetY=baseStart.y+dy;
+  }
+
+  // ===== 悬停聚焦 =====
+  if(!isStacked && state!=='fist'){
+    // MediaPipe坐标是归一化的(0-1)，且x轴是根据摄像头的(也就是镜像的)
+    // 如果想要非常精确的对应，这里使用了简单的映射
+    const ix = (1 - landmarks[8].x) * mainCanvas.width;
+    const iy = landmarks[8].y * mainCanvas.height;
+
+    let nearest=null;
+    let minD=Infinity;
+    
+    pieces.forEach(p=>{
+      const d=Math.hypot(p.x-ix, p.y-iy);
+      if(d<minD){ minD=d; nearest=p;}
+    });
+
+    if(nearest && minD < 200){
+      activeFocusPiece = nearest;
+      pieces.forEach(p => {
+         if(p === nearest) {
+            p.targetScale = p.maxScale;
+            // 稍微浮起
+            p.stackOffsetX = 0; 
+            p.stackOffsetY = -10;
+         } else {
+            p.targetScale = p.minScale;
+         }
+      });
+      // 这里的逻辑保持不变：选中的移到数组最后（绘制顶层）
+      const idx=pieces.indexOf(nearest);
+      if(idx!==-1 && idx !== pieces.length-1){ 
+          pieces.splice(idx,1); 
+          pieces.push(nearest);
+      }
+    } else {
+      activeFocusPiece = null;
+      pieces.forEach(p => p.targetScale = p.minScale);
+    }
+  }
+});
+
+// ================= 绘制 =================
+function draw(){
+  // 1. 绘制视频帧
+  videoCtx.clearRect(0,0,CAM_W,CAM_H);
+  // 我们不需要在JS里做镜像翻转，直接由CSS transform: scaleX(-1) 处理显示
+  // 这样 videoCtx 内部的坐标系和 MediaPipe 的坐标系就是原始对应的 (非镜像)
+  videoCtx.drawImage(video, 0, 0, CAM_W, CAM_H);
+
+  // 2. 绘制骨骼
+  if(handVisible && landmarks){
+    // 注意：MediaPipe 返回的 landmarks x 坐标是针对原始图像的
+    // 因为我们在 CSS 里翻转了 Canvas，所以这里直接画就行，不需要数学上的翻转
+    drawConnectors(videoCtx, landmarks, HAND_CONNECTIONS, {color:'#00ffaa', lineWidth:2});
+    drawLandmarks(videoCtx, landmarks, {color:'#ff3355', radius:3});
+  }
+
+  // 3. 物理计算
+  stackBase.vx+=(stackBase.targetX-stackBase.x)*INERTIA_FORCE;
+  stackBase.vy+=(stackBase.targetY-stackBase.y)*INERTIA_FORCE;
+  stackBase.vx*=INERTIA_DAMP;
+  stackBase.vy*=INERTIA_DAMP;
+  stackBase.x+=stackBase.vx;
+  stackBase.y+=stackBase.vy;
+
+  mainCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+
+  // 4. 绘制图片
+  pieces.forEach(p=>{
+    p.targetX = isStacked?stackBase.x+p.stackOffsetX:p.targetX;
+    p.targetY = isStacked?stackBase.y+p.stackOffsetY:p.targetY;
+
+    p.x+=(p.targetX-p.x)*SMOOTH;
+    p.y+=(p.targetY-p.y)*SMOOTH;
+    p.scale+=(p.targetScale-p.scale)*SMOOTH;
+    p.rotation+=(p.targetRotation-p.rotation)*SMOOTH;
+
+    // 景深逻辑：聚焦时，非聚焦卡片使用模糊缓存
+    const shouldBlur = activeFocusPiece && (p !== activeFocusPiece);
+    const drawCache = shouldBlur ? p.cacheBlur : p.cacheSharp;
+
+    mainCtx.save();
+    mainCtx.translate(p.x,p.y);
+    mainCtx.rotate(p.rotation);
+    mainCtx.scale(p.scale,p.scale);
+
+    // 阴影
+    mainCtx.shadowColor='rgba(0,0,0,0.3)';
+    mainCtx.shadowBlur = 16 + p.scale * 8;
+    mainCtx.fillStyle = 'rgba(0,0,0,0)'; 
+    mainCtx.beginPath();
+    mainCtx.rect(-p.w/2+2, -p.h/2+2, p.w-4, p.h-4);
+    mainCtx.fill(); 
+
+    // 重置阴影，准备绘制高清图片
+    mainCtx.shadowColor = 'transparent'; 
+    mainCtx.shadowBlur = 0;
+
+    // 修复 3: 不修改 globalAlpha，只依靠图片模糊
+    // 注意：drawImage 的宽高参数依然是 p.w 和 p.h (300x200)
+    // Canvas 会自动将我们 2.5倍大 (750x500) 的缓存缩放到 300x200
+    // 当 p.scale 变大时（例如2倍），屏幕上实际显示 600x400，
+    // 此时我们的源图 750x500 依然足够清晰！
+    if (drawCache) {
+        mainCtx.drawImage(drawCache, -p.w/2, -p.h/2, p.w, p.h);
+    }
+
+    mainCtx.restore();
+  });
+
+  requestAnimationFrame(draw);
+}
+
+// ================= 摄像头启动 =================
+// 明确指定请求 640x480 分辨率
+const camera = new Camera(video,{
+  onFrame:async()=>hands.send({image:video}),
+  width:CAM_W,
+  height:CAM_H
+});
+camera.start();
+draw();
+</script>
+
+</body>
+</html>
