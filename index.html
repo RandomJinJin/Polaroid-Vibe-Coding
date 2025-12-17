@@ -46,15 +46,15 @@
   <script>
     /* ================= 内嵌照片信息 ================= */
     const photoInfoMap = {
-      "pic1.jpg": { date: "2023.10.05", desc: "秋日野餐", color: "#555555" },
-      "pic2.jpg": { date: "2023.11.12", desc: "海边落日", color: "#1a4e8a" },
-      "pic3.jpg": { date: "2023.12.24", desc: "平安夜", color: "#c92a2a" },
-      "pic4.jpg": { date: "2024.01.01", desc: "新年快乐", color: "#ffcc00" },
-      "pic5.jpg": { date: "2024.02.14", desc: "情人节", color: "#ff6699" },
-      "pic6.jpg": { date: "2024.03.08", desc: "妇女节", color: "#ff6699" },
-      "pic7.jpg": { date: "2024.04.01", desc: "愚人节", color: "#ff6699" },
-      "pic8.jpg": { date: "2024.05.01", desc: "劳动节", color: "#ff6699" },
-      "pic9.jpg": { date: "2024.06.01", desc: "儿童节", color: "#ff6699" }
+      "pic1.jpg": { date: "2023.10.05", desc: "Info1", color: "#555555" },
+      "pic2.jpg": { date: "2023.11.12", desc: "Info2", color: "#1a4e8a" },
+      "pic3.jpg": { date: "2023.12.24", desc: "Info3", color: "#c92a2a" },
+      "pic4.jpg": { date: "2024.01.01", desc: "Info4", color: "#ffcc00" },
+      "pic5.jpg": { date: "2024.02.14", desc: "Info5", color: "#FA8072" },
+      "pic6.jpg": { date: "2024.03.08", desc: "Info6", color: "#ff6699" },
+      "pic7.jpg": { date: "2024.04.01", desc: "Info7", color: "#90EE90" },
+      "pic8.jpg": { date: "2024.05.01", desc: "Info8", color: "#6495ED	" },
+      "pic9.jpg": { date: "2024.06.01", desc: "Info9", color: "#48D1CC" }
     };
 
     /* ================= Canvas ================= */
@@ -250,6 +250,18 @@
           nearest.targetScale = nearest.maxScale;
           nearest.stackOffsetX = 0;
           nearest.stackOffsetY = -10;
+
+          // ===== ⭐ 悬浮跟随修复 =====
+          if (lastFingerX !== null && lastFingerY !== null) {
+            const dx = ix - lastFingerX;
+            const dy = iy - lastFingerY;
+
+            nearest.targetX += dx * 0.15;
+            nearest.targetY += dy * 0.15;
+            nearest.targetRotation += dx * 0.0008;
+
+            nearest.vr += (Math.random() - 0.5) * 0.001;
+          }
 
           const idx = pieces.indexOf(nearest);
           if (idx !== -1) { pieces.splice(idx, 1); pieces.push(nearest); }
