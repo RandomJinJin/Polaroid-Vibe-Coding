@@ -3,26 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <title>Interactive Polaroid Stack</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+
 <style>
-  body {
-    margin: 0;
-    background: #111;
-    overflow: hidden;
-  }
-  #mainCanvas {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-  }
+  body { margin:0; background:#111; overflow:hidden; }
+  #mainCanvas { position:fixed; inset:0; z-index:1; }
   #videoCanvas {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    width: 240px;
-    height: 180px;
-    border: 1px solid #333;
-    background: #000;
-    z-index: 2;
+    position:fixed; top:16px; right:16px;
+    width:240px; height:180px;
+    border:1px solid #333; background:#000; z-index:2;
   }
 </style>
 </head>
@@ -37,89 +27,106 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <script>
-const video = document.getElementById('video');
-const mainCanvas = document.getElementById('mainCanvas');
-const mainCtx = mainCanvas.getContext('2d');
-const videoCanvas = document.getElementById('videoCanvas');
-const videoCtx = videoCanvas.getContext('2d');
+/* ================= 内嵌照片信息 ================= */
+const photoInfoMap = {
+  "pic1.jpg": { date:"2023.10.05", desc:"秋日野餐", color:"#555555" },
+  "pic2.jpg": { date:"2023.11.12", desc:"海边落日", color:"#1a4e8a" },
+  "pic3.jpg": { date:"2023.12.24", desc:"平安夜",   color:"#c92a2a" },
+  "pic4.jpg": { date:"2024.01.01", desc:"新年快乐", color:"#ffcc00" },
+  "pic5.jpg": { date:"2024.02.14", desc:"情人节",   color:"#ff6699" },
+  "pic6.jpg": { date:"2024.03.08", desc:"妇女节",   color:"#ff6699" },
+  "pic7.jpg": { date:"2024.04.01", desc:"愚人节",   color:"#ff6699" },
+  "pic8.jpg": { date:"2024.05.01", desc:"劳动节",   color:"#ff6699" },
+  "pic9.jpg": { date:"2024.06.01", desc:"儿童节",   color:"#ff6699" }
+};
 
-function resize() {
-  mainCanvas.width = innerWidth;
-  mainCanvas.height = innerHeight;
+/* ================= Canvas ================= */
+const video=document.getElementById('video');
+const mainCanvas=document.getElementById('mainCanvas');
+const mainCtx=mainCanvas.getContext('2d');
+const videoCanvas=document.getElementById('videoCanvas');
+const videoCtx=videoCanvas.getContext('2d');
+
+function resize(){
+  mainCanvas.width=innerWidth;
+  mainCanvas.height=innerHeight;
 }
 resize();
-addEventListener('resize', resize);
+addEventListener('resize',resize);
 
-// ================= 参数 =================
-const FOLLOW_GAIN = 0.22;
-const INERTIA_FORCE = 0.08;
-const INERTIA_DAMP = 0.85;
-const SMOOTH = 0.15;
+/* ================= 参数 ================= */
+const FOLLOW_GAIN=0.22;
+const INERTIA_FORCE=0.08;
+const INERTIA_DAMP=0.85;
+const SMOOTH=0.15;
 
-const N = 9;
-const pieceW = 300; // 3:2
-const pieceH = 200;
-const scatterOffset = 700;
+const N=9;
+const pieceW=300;
+const pieceH=200;
+const scatterOffset=700;
 
-const pieces = [];
-const stackBase = { x: innerWidth/2, y: innerHeight/2, targetX: innerWidth/2, targetY: innerHeight/2, vx:0, vy:0 };
+/* ================= 数据 ================= */
+const stackBase={
+  x:innerWidth/2,y:innerHeight/2,
+  targetX:innerWidth/2,targetY:innerHeight/2,
+  vx:0,vy:0
+};
 
-// 图片接口
-const imageUrls = [
+const pieces=[];
+const imageUrls=[
   'images/pic1.jpg','images/pic2.jpg','images/pic3.jpg',
   'images/pic4.jpg','images/pic5.jpg','images/pic6.jpg',
   'images/pic7.jpg','images/pic8.jpg','images/pic9.jpg'
 ];
 
-// 初始化碎片
-for (let i=0;i<N;i++){
-  const img = new Image();
-  img.src = imageUrls[i % imageUrls.length];
+/* ================= 初始化 ================= */
+for(let i=0;i<N;i++){
+  const img=new Image();
+  img.src=imageUrls[i];
+  const fileName=imageUrls[i].split('/').pop();
+
   pieces.push({
-    w: pieceW,
-    h: pieceH,
-    x: stackBase.x,
-    y: stackBase.y,
-    targetX: stackBase.x,
-    targetY: stackBase.y,
-    stackOffsetX: (Math.random()-0.5)*50,
-    stackOffsetY: (Math.random()-0.5)*40,
-    rotation: (Math.random()-0.5)*0.25,
-    targetRotation: (Math.random()-0.5)*0.25,
-    scale: 1,
-    targetScale: 1,
-    minScale: 1,
-    maxScale: 2,
-    img: img,
-    // 手指抓取微动属性
-    vx:0, vy:0, vr:0
+    w:pieceW,h:pieceH,
+    x:stackBase.x,y:stackBase.y,
+    targetX:stackBase.x,targetY:stackBase.y,
+    stackOffsetX:(Math.random()-0.5)*50,
+    stackOffsetY:(Math.random()-0.5)*40,
+    rotation:(Math.random()-0.5)*0.25,
+    targetRotation:(Math.random()-0.5)*0.25,
+    scale:1,targetScale:1,
+    minScale:1,maxScale:2,
+    img,fileName,
+    info:photoInfoMap[fileName],
+    textAlpha:0,
+    vx:0,vy:0,vr:0
   });
 }
 
-// ================= 状态 =================
-let isStacked = true;
-let lastHandState = 'fist';
-let handVisible = false;
-let landmarks = null;
-let grabStart = null;
-let baseStart = null;
-let lastFingerX = null;
-let lastFingerY = null;
-let lastRotateTime = 0;
+/* ================= 手势 ================= */
+let isStacked=true;
+let lastHandState='fist';
+let handVisible=false;
+let landmarks=null;
+let grabStart=null;
+let baseStart=null;
+let lastFingerX=null,lastFingerY=null,lastRotateTime=0;
 
-// ================= 手势 =================
-function isFist(lm){ return lm[8].y>lm[5].y;}
-function isOpen(lm){ return [8,12,16,20].every(i=>lm[i].y<lm[i-3].y);}
+function isFist(lm){return lm[8].y>lm[5].y;}
+function isOpen(lm){return [8,12,16,20].every(i=>lm[i].y<lm[i-3].y);}
 
-// ================= MediaPipe =================
-const hands = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-hands.setOptions({maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.6, minTrackingConfidence:0.6});
+/* ================= MediaPipe ================= */
+const hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+hands.setOptions({
+  maxNumHands:1,
+  modelComplexity:1,
+  minDetectionConfidence:0.6,
+  minTrackingConfidence:0.6
+});
 
 hands.onResults(res=>{
   if(!res.multiHandLandmarks?.length){
-    handVisible=false; landmarks=null; grabStart=null; 
-    pieces.forEach(p=>{p.vx=0;p.vy=0;p.vr=0;});
-    lastFingerX = null; lastFingerY = null;
+    handVisible=false; landmarks=null;
+    lastFingerX=null; lastFingerY=null;
     return;
   }
 
@@ -130,33 +137,25 @@ hands.onResults(res=>{
   if(isFist(landmarks)) state='fist';
   else if(isOpen(landmarks)) state='open';
 
-  // ===== 状态切换 =====
   if(state!==lastHandState){
     lastHandState=state;
 
     if(state==='open'){
       isStacked=false;
       pieces.forEach(p=>{
-        p.targetX = stackBase.x + (Math.random()-0.5)*scatterOffset;
-        p.targetY = stackBase.y + (Math.random()-0.5)*scatterOffset;
-        p.vx=0; p.vy=0; p.vr=0;
+        p.targetX=stackBase.x+(Math.random()-0.5)*scatterOffset;
+        p.targetY=stackBase.y+(Math.random()-0.5)*scatterOffset;
       });
     }
 
     if(state==='fist'){
       isStacked=true;
-      grabStart={x:landmarks[0].x, y:landmarks[0].y};
-      baseStart={x:stackBase.x, y:stackBase.y};
-      pieces.forEach(p=>{
-        p.targetScale=p.minScale;
-        p.stackOffsetX=(Math.random()-0.5)*50;
-        p.stackOffsetY=(Math.random()-0.5)*40;
-        p.vx=0; p.vy=0; p.vr=0;
-      });
+      grabStart={x:landmarks[0].x,y:landmarks[0].y};
+      baseStart={x:stackBase.x,y:stackBase.y};
+      pieces.forEach(p=>p.targetScale=1);
     }
   }
 
-  // ===== 聚合轻微跟随 =====
   if(isStacked && state==='fist' && grabStart){
     const dx=(landmarks[0].x-grabStart.x)*mainCanvas.width*FOLLOW_GAIN;
     const dy=(landmarks[0].y-grabStart.y)*mainCanvas.height*FOLLOW_GAIN;
@@ -164,100 +163,75 @@ hands.onResults(res=>{
     stackBase.targetY=baseStart.y+dy;
   }
 
-  // ===== 食指选中放大 + 微动惯性（角度缓慢）=====
   if(!isStacked && state==='none'){
-    const ix = (1 - landmarks[8].x) * mainCanvas.width;
-    const iy = landmarks[8].y * mainCanvas.height;
+    const ix=(1-landmarks[8].x)*mainCanvas.width;
+    const iy=landmarks[8].y*mainCanvas.height;
 
-    let nearest = null;
-    let minD = Infinity;
+    let nearest=null,minD=Infinity;
     pieces.forEach(p=>{
-      p.targetScale = p.minScale;
-      const d = Math.hypot(p.x - ix, p.y - iy);
-      if(d < minD){ minD = d; nearest = p; }
+      p.targetScale=1;
+      const d=Math.hypot(p.x-ix,p.y-iy);
+      if(d<minD){minD=d; nearest=p;}
     });
 
-    if(nearest && minD < 200){
-      nearest.targetScale = nearest.maxScale;
-      nearest.stackOffsetX = 0;
-      nearest.stackOffsetY = -10;
-      const idx = pieces.indexOf(nearest);
-      if(idx !== -1) { pieces.splice(idx,1); pieces.push(nearest); }
+    if(nearest && minD<200){
+      nearest.targetScale=nearest.maxScale;
+      nearest.stackOffsetX=0;
+      nearest.stackOffsetY=-10;
 
-      const now = Date.now();
-      if(lastFingerX !== null){
-        const dx = ix - lastFingerX;
-        const dy = iy - lastFingerY;
-        const moveMag = Math.hypot(dx, dy);
-        if(moveMag > 1 && now - lastRotateTime > 120){ // 每120ms更新一次
-          nearest.vx += dx * 0.25;
-          nearest.vy += dy * 0.25;
-          nearest.vr += (Math.random()-0.5)*0.02; // 轻微旋转
-          lastRotateTime = now;
-        }
-      }
+      const idx=pieces.indexOf(nearest);
+      if(idx!==-1){pieces.splice(idx,1); pieces.push(nearest);}
     }
-    lastFingerX = ix;
-    lastFingerY = iy;
+
+    lastFingerX=ix;
+    lastFingerY=iy;
   }
 });
 
-// ================= 绘制 =================
+/* ================= 绘制 ================= */
 function draw(){
   videoCtx.clearRect(0,0,videoCanvas.width,videoCanvas.height);
   videoCtx.drawImage(video,0,0,videoCanvas.width,videoCanvas.height);
-  if(handVisible && landmarks){
-    drawConnectors(videoCtx, landmarks, HAND_CONNECTIONS, {color:'#00ffaa', lineWidth:2});
-    drawLandmarks(videoCtx, landmarks, {color:'#ff3355', radius:3});
-  }
-
-  // 堆叠惯性
-  stackBase.vx+=(stackBase.targetX-stackBase.x)*INERTIA_FORCE;
-  stackBase.vy+=(stackBase.targetY-stackBase.y)*INERTIA_FORCE;
-  stackBase.vx*=INERTIA_DAMP;
-  stackBase.vy*=INERTIA_DAMP;
-  stackBase.x+=stackBase.vx;
-  stackBase.y+=stackBase.vy;
 
   mainCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
 
   pieces.forEach(p=>{
-    p.targetX = isStacked?stackBase.x+p.stackOffsetX:p.targetX;
-    p.targetY = isStacked?stackBase.y+p.stackOffsetY:p.targetY;
+    if(isStacked){
+      p.targetX=stackBase.x+p.stackOffsetX;
+      p.targetY=stackBase.y+p.stackOffsetY;
+    }
 
-    // 平滑跟随 + 惯性
-    p.x += (p.targetX - p.x)*SMOOTH + p.vx;
-    p.y += (p.targetY - p.y)*SMOOTH + p.vy;
-    p.scale += (p.targetScale - p.scale)*SMOOTH;
-    p.rotation += (p.targetRotation - p.rotation)*SMOOTH + p.vr;
+    p.x+=(p.targetX-p.x)*SMOOTH+p.vx;
+    p.y+=(p.targetY-p.y)*SMOOTH+p.vy;
+    p.scale+=(p.targetScale-p.scale)*SMOOTH;
+    p.rotation+=(p.targetRotation-p.rotation)*SMOOTH+p.vr;
 
-    // 阻尼惯性
-    p.vx *= 0.8;
-    p.vy *= 0.8;
-    p.vr *= 0.85; // 更强阻尼，角度变化缓慢
+    p.vx*=0.8; p.vy*=0.8; p.vr*=0.85;
 
     mainCtx.save();
     mainCtx.translate(p.x,p.y);
     mainCtx.rotate(p.rotation);
     mainCtx.scale(p.scale,p.scale);
 
-    const w=p.w; const h=p.h;
-    const padTop=14, padSide=14, padBottom=38;
+    const w=p.w,h=p.h;
+    const padTop=14,padSide=14,padBottom=38;
 
-    // 阴影增强
-    mainCtx.shadowColor='rgba(0,0,0,'+ (0.35+p.scale*0.05) +')';
-    mainCtx.shadowBlur=16+p.scale*8;
+    /* 🌫️ 拍立得投影（恢复） */
+    mainCtx.shadowColor='rgba(0,0,0,0.35)';
+    mainCtx.shadowBlur=22;
+    mainCtx.shadowOffsetY=10;
 
-    // 白边相纸
-    mainCtx.fillStyle='#fdfdfd';
+    mainCtx.fillStyle='#fff';
     mainCtx.beginPath();
     mainCtx.roundRect(-w/2,-h/2,w,h,8);
     mainCtx.fill();
 
+    /* 关闭阴影，避免污染图片和文字 */
+    mainCtx.shadowColor='transparent';
     mainCtx.shadowBlur=0;
+    mainCtx.shadowOffsetY=0;
 
-    // 图片绘制
-    if(p.img && p.img.complete){
+    if(p.img.complete){
       mainCtx.drawImage(
         p.img,
         -w/2+padSide,
@@ -265,24 +239,36 @@ function draw(){
         w-padSide*2,
         h-padTop-padBottom
       );
-    } else {
-      mainCtx.fillStyle='#e0c04f';
-      mainCtx.fillRect(
-        -w/2+padSide,
-        -h/2+padTop,
-        w-padSide*2,
-        h-padTop-padBottom
-      );
     }
 
+    /* ===== 文字渐显 ===== */
+    const targetAlpha=p.scale>1.05?1:0;
+    p.textAlpha+=(targetAlpha-p.textAlpha)*0.12;
+
+    if(p.info && p.textAlpha>0.01){
+      mainCtx.globalAlpha=p.textAlpha;
+      mainCtx.fillStyle=p.info.color;
+      mainCtx.font='18px Caveat, cursive';
+
+      mainCtx.textAlign='left';
+      mainCtx.fillText(p.info.date,-w/2+18,h/2-10);
+
+      mainCtx.textAlign='right';
+      mainCtx.fillText(p.info.desc,w/2-18,h/2-10);
+    }
+
+    mainCtx.globalAlpha=1;
     mainCtx.restore();
   });
 
   requestAnimationFrame(draw);
 }
 
-// ================= 摄像头 =================
-const camera = new Camera(video,{onFrame:async()=>hands.send({image:video}),width:640,height:480});
+/* ================= Camera ================= */
+const camera=new Camera(video,{
+  onFrame:async()=>hands.send({image:video}),
+  width:640,height:480
+});
 camera.start();
 draw();
 </script>
