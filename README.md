@@ -6,6 +6,6 @@
 - 伸出食指：选中放大照片
 
 ## 文件说明
-- index_base：基础交互
-- index_hover：选中图片有悬浮感
-- index_dof：选中图片增加景深效果（持续失败中） 
+- polaroid_base：基础交互
+- polaroid_hover：选中图片有悬浮感
+- polaroid_dof：选中图片增加景深效果（持续失败中） 
