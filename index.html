@@ -5,92 +5,101 @@
   <meta charset="UTF-8">
   <title>入口页面</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <style>
+    /* 基础重置 */
     html,
     body {
       margin: 0;
+      padding: 0;
       width: 100%;
-      height: 100%;
+      height: 100vh;
+      overflow: hidden;
+      /* 禁止滚动条，保持页面纯净 */
     }
 
     body {
+      /* 布局控制 */
       display: flex;
       justify-content: flex-end;
-      /* 文字按钮靠右 */
-      align-items: center;
+      /* 按钮靠右 */
+      align-items: flex-start;
+      /* 按钮靠上 */
+      padding-top: 35vh;
+      /* 距离顶部高度 */
 
-      background-image: url('./assets/background.jpg');
-      /* 背景图片 */
+      /* --- 最自然的背景设置 --- */
+      background-image: url('./assets/background2.jpg');
       background-size: cover;
+      /* 核心：等比例缩放铺满，不留白，不拉伸 */
       background-position: center;
+      /* 核心：始终居中对齐，从四周裁切边缘 */
       background-repeat: no-repeat;
+      background-attachment: fixed;
+      /* 背景固定，视觉感更扎实 */
+      background-color: #fff;
 
-      font-family: "FangSong", SimSun, serif;
-      /* 仿宋字体 */
+      font-family: "FangSong", "仿宋", SimSun, serif;
       opacity: 1;
       transition: opacity 0.8s ease;
-
-      padding-right: 80px;
-      /* 右侧留出更多距离 */
     }
 
     body.fade-out {
       opacity: 0;
     }
 
-    /* 文字按钮样式 */
+    /* 按钮样式 */
     .text-btn {
-      font-size: 36px;
-      /* 文字增大 */
-      color: #fff;
+      position: relative;
+      font-size: 48px;
+      color: #000;
       background: transparent;
       border: none;
       cursor: pointer;
-      position: relative;
-      padding: 4px 0;
+      padding: 10px 20px;
       font-weight: 600;
-      letter-spacing: 1px;
-      overflow: hidden;
+      letter-spacing: 2px;
+      margin-right: 80px;
+      font-family: "FangSong", "仿宋", SimSun, serif;
+
+      /* 增加轻微文字阴影，防止背景太乱导致文字看不清 */
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+      transition: transform 0.3s ease;
     }
 
-    /* 悬浮波浪线 */
+    .text-btn:hover {
+      transform: scale(1.05);
+      /* 悬停时轻微放大 */
+    }
+
+    /* 射箭线条动画 */
     .text-btn::after {
       content: '';
       position: absolute;
-      bottom: 0;
       left: 0;
-      height: 2px;
+      bottom: 0;
+      height: 3px;
       width: 0;
-      background: linear-gradient(90deg, #fff, #ffeb3b, #fff);
-      transition: width 0.6s ease;
       border-radius: 2px;
+      background: linear-gradient(90deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 1));
+      opacity: 0;
+      transition: width 0.4s cubic-bezier(.23, 1, .32, 1), opacity 0.3s;
     }
 
     .text-btn:hover::after {
       width: 100%;
-      /* 从左到右展开 */
-      animation: wave 1s infinite linear;
+      opacity: 1;
     }
 
-    /* 波浪动画（小幅上下移动） */
-    @keyframes wave {
-
-      0%,
-      100% {
-        transform: translateY(0);
+    /* 移动端简单适配 */
+    @media (max-width: 768px) {
+      body {
+        justify-content: center;
+        padding-right: 0;
       }
 
-      25% {
-        transform: translateY(-3px);
-      }
-
-      50% {
-        transform: translateY(0);
-      }
-
-      75% {
-        transform: translateY(3px);
+      .text-btn {
+        margin-right: 0;
+        font-size: 36px;
       }
     }
   </style>
@@ -103,9 +112,7 @@
   <script>
     function enter() {
       if (document.body.classList.contains('fade-out')) return;
-
       document.body.classList.add('fade-out');
-
       setTimeout(() => {
         window.location.href = './polaroid.html';
       }, 800);

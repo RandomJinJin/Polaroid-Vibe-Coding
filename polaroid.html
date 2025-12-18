@@ -2,415 +2,514 @@
 <html lang="zh-CN">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Interactive Polaroid Stack</title>
+    <meta charset="UTF-8">
+    <title>Interactive Polaroid Stack</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 
-  <style>
-    body {
-      margin: 0;
-      background: #FFE4E1;
-      overflow: hidden;
-    }
+    <style>
+        body {
+            margin: 0;
+            background: #FFE4E1;
+            overflow: hidden;
+        }
 
-    #mainCanvas {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-    }
+        #mainCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
 
-    #polaroidCamera {
-      position: fixed;
-      top: 16px;
-      right: 16px;
+        #polaroidCamera {
+            position: fixed;
+            top: 16px;
+            right: 16px;
 
-      width: 260px;
-      padding: 14px 14px 38px 14px;
-      /* 👈 下方更宽 */
+            width: 260px;
+            padding: 14px 14px 38px 14px;
+            /* 👈 下方更宽 */
 
-      background: #fff;
-      border-radius: 10px;
+            background: #fff;
+            border-radius: 10px;
 
-      box-shadow:
-        0 12px 28px rgba(0, 0, 0, 0.35),
-        0 2px 6px rgba(0, 0, 0, 0.15);
+            box-shadow:
+                0 12px 28px rgba(0, 0, 0, 0.35),
+                0 2px 6px rgba(0, 0, 0, 0.15);
 
-      z-index: 2;
-    }
+            z-index: 2;
+        }
 
-    #viewFinder {
-      width: 100%;
-      height: 180px;
+        #viewFinder {
+            width: 100%;
+            height: 180px;
 
-      background: #000;
-      border-radius: 6px;
-      overflow: hidden;
+            background: #000;
+            border-radius: 6px;
+            overflow: hidden;
 
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
-    }
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+        }
 
-    #videoCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-  </style>
+        #videoCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
 </head>
 
 <body>
 
-  <video id="video" autoplay playsinline style="display:none;"></video>
-  <canvas id="mainCanvas"></canvas>
-  <!-- ✅ 新增：拍立得取景器 -->
-  <div id="polaroidCamera">
-    <div id="viewFinder">
-      <canvas id="videoCanvas"></canvas>
+    <video id="video" autoplay playsinline style="display:none;"></video>
+    <canvas id="mainCanvas"></canvas>
+    <!-- ✅ 新增：拍立得取景器 -->
+    <div id="polaroidCamera">
+        <div id="viewFinder">
+            <canvas id="videoCanvas"></canvas>
+        </div>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
-  <script>
-    /* ================= 内嵌照片信息 ================= */
-    const photoInfoMap = {
-      "pic1.jpg": { date: "2023.10.05", desc: "Info1", color: "#555555" },
-      "pic2.jpg": { date: "2023.11.12", desc: "Info2", color: "#1a4e8a" },
-      "pic3.jpg": { date: "2023.12.24", desc: "Info3", color: "#c92a2a" },
-      "pic4.jpg": { date: "2024.01.01", desc: "Info4", color: "#ffcc00" },
-      "pic5.jpg": { date: "2024.02.14", desc: "Info5", color: "#FA8072" },
-      "pic6.jpg": { date: "2024.03.08", desc: "Info6", color: "#ff6699" },
-      "pic7.jpg": { date: "2024.04.01", desc: "Info7", color: "#90EE90" },
-      "pic8.jpg": { date: "2024.05.01", desc: "Info8", color: "#6495ED" },
-      "pic9.jpg": { date: "2024.06.01", desc: "Info9", color: "#48D1CC" }
-    };
+    <script>
+        /* ================= 内嵌照片信息 ================= */
+        const photoInfoMap = {
+            "pic1.jpg": { date: "2023.10.05", desc: "Info1", color: "#555555" },
+            "pic2.jpg": { date: "2023.11.12", desc: "Info2", color: "#1a4e8a" },
+            "pic3.jpg": { date: "2023.12.24", desc: "Info3", color: "#c92a2a" },
+            "pic4.jpg": { date: "2024.01.01", desc: "Info4", color: "#ffcc00" },
+            "pic5.jpg": { date: "2024.02.14", desc: "Info5", color: "#FA8072" },
+            "pic6.jpg": { date: "2024.03.08", desc: "Info6", color: "#ff6699" },
+            "pic7.jpg": { date: "2024.04.01", desc: "Info7", color: "#90EE90" },
+            "pic8.jpg": { date: "2024.05.01", desc: "Info8", color: "#6495ED" },
+            "pic9.jpg": { date: "2024.06.01", desc: "Info9", color: "#48D1CC" }
+        };
 
-    /* ================= Canvas ================= */
-    const video = document.getElementById('video');
-    const mainCanvas = document.getElementById('mainCanvas');
-    const mainCtx = mainCanvas.getContext('2d');
-    const videoCanvas = document.getElementById('videoCanvas');
-    const videoCtx = videoCanvas.getContext('2d');
+        /* ================= Canvas ================= */
+        const video = document.getElementById('video');
+        const mainCanvas = document.getElementById('mainCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const videoCtx = videoCanvas.getContext('2d');
 
-    function resizeVideoCanvas() {
-      videoCanvas.width = videoCanvas.clientWidth;
-      videoCanvas.height = videoCanvas.clientHeight;
-    }
-
-    resizeVideoCanvas();
-    window.addEventListener('resize', resizeVideoCanvas);
+        const polaroidCamera = document.getElementById('polaroidCamera');
 
 
-    function resize() {
-      mainCanvas.width = innerWidth;
-      mainCanvas.height = innerHeight;
-    }
-    resize();
-    addEventListener('resize', resize);
-
-    /* ================= 参数 ================= */
-    const FOLLOW_GAIN = 0.22;
-    const INERTIA_FORCE = 0.08;
-    const INERTIA_DAMP = 0.85;
-    const SMOOTH = 0.15;
-
-    const N = 9;
-    const pieceW = 300;
-    const pieceH = 200;
-    const scatterOffset = 700;
-
-    /* ================= 数据 ================= */
-    const stackBase = {
-      x: innerWidth / 2, y: innerHeight / 2,
-      targetX: innerWidth / 2, targetY: innerHeight / 2,
-      vx: 0, vy: 0
-    };
-
-    const pieces = [];
-    const imageUrls = [
-      'images/pic1.jpg', 'images/pic2.jpg', 'images/pic3.jpg',
-      'images/pic4.jpg', 'images/pic5.jpg', 'images/pic6.jpg',
-      'images/pic7.jpg', 'images/pic8.jpg', 'images/pic9.jpg'
-    ];
-
-    /* ================= 初始化 ================= */
-    for (let i = 0; i < N; i++) {
-      const img = new Image();
-      img.src = imageUrls[i];
-      const fileName = imageUrls[i].split('/').pop();
-
-      pieces.push({
-        w: pieceW, h: pieceH,
-        x: stackBase.x, y: stackBase.y,
-        targetX: stackBase.x, targetY: stackBase.y,
-        stackOffsetX: (Math.random() - 0.5) * 50,
-        stackOffsetY: (Math.random() - 0.5) * 40,
-        rotation: (Math.random() - 0.5) * 0.25,
-        targetRotation: (Math.random() - 0.5) * 0.25,
-        scale: 1, targetScale: 1,
-        minScale: 1, maxScale: 2,
-        img, fileName,
-        info: photoInfoMap[fileName],
-        textAlpha: 0,
-        vx: 0, vy: 0, vr: 0
-      });
-    }
-
-    /* ================= 手势 ================= */
-    let isStacked = true;
-    let lastHandState = 'fist';
-    let handVisible = false;
-    let landmarks = null;
-    let grabStart = null;
-    let baseStart = null;
-    let lastFingerX = null, lastFingerY = null, lastRotateTime = 0;
-    let lastGrabX = null;
-    let lastGrabY = null;
-    let lastFistVelocity = { x: 0, y: 0 };
-    let prevHandState = 'none';
-
-
-    function isFist(lm) { return lm[8].y > lm[5].y; }
-    function isOpen(lm) { return [8, 12, 16, 20].every(i => lm[i].y < lm[i - 3].y); }
-
-    /* ================= MediaPipe ================= */
-    const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.6,
-      minTrackingConfidence: 0.6
-    });
-
-    hands.onResults(res => {
-      if (!res.multiHandLandmarks?.length) {
-        handVisible = false; landmarks = null;
-        lastFingerX = null; lastFingerY = null;
-        return;
-      }
-
-      handVisible = true;
-      landmarks = res.multiHandLandmarks[0];
-
-      let state = 'none';
-      if (isFist(landmarks)) state = 'fist';
-      else if (isOpen(landmarks)) state = 'open';
-
-      if (state !== lastHandState) {
-        lastHandState = state;
-
-        if (state === 'open') {
-          isStacked = false;
-          pieces.forEach(p => {
-            p.targetX = stackBase.x + (Math.random() - 0.5) * scatterOffset;
-            p.targetY = stackBase.y + (Math.random() - 0.5) * scatterOffset;
-          });
+        function resizeVideoCanvas() {
+            videoCanvas.width = videoCanvas.clientWidth;
+            videoCanvas.height = videoCanvas.clientHeight;
         }
 
-        if (state === 'fist') {
-          isStacked = true;
-          grabStart = { x: landmarks[0].x, y: landmarks[0].y };
-          baseStart = { x: stackBase.x, y: stackBase.y };
-          pieces.forEach(p => p.targetScale = 1);
+        resizeVideoCanvas();
+        window.addEventListener('resize', resizeVideoCanvas);
+
+
+        function resize() {
+            mainCanvas.width = innerWidth;
+            mainCanvas.height = innerHeight;
         }
-      }
+        resize();
+        addEventListener('resize', resize);
 
-      // ===== 松拳瞬间：轻微回弹（新增）=====
-      if (prevHandState === 'fist' && state !== 'fist') {
-        // 整体反向回弹
-        stackBase.vx += -lastFistVelocity.x * 0.45;
-        stackBase.vy += -lastFistVelocity.y * 0.45;
+        /* ================= 参数 ================= */
+        const FOLLOW_GAIN = 0.22;
+        const INERTIA_FORCE = 0.08;
+        const INERTIA_DAMP = 0.85;
+        const SMOOTH = 0.15;
 
-        // 每张拍立得不同相位的回弹
-        pieces.forEach(p => {
-          p.vx += -lastFistVelocity.x * (Math.random() * 0.05);
-          p.vy += -lastFistVelocity.y * (Math.random() * 0.05);
-          p.vr += (Math.random() - 0.5) * 0.015;
-        });
-      }
+        const N = 9;
+        const pieceW = 300;
+        const pieceH = 200;
+        const scatterOffset = 700;
 
+        /* ================= 数据 ================= */
+        const stackBase = {
+            x: innerWidth / 2, y: innerHeight / 2,
+            targetX: innerWidth / 2, targetY: innerHeight / 2,
+            vx: 0, vy: 0
+        };
 
-      if (isStacked && state === 'fist' && grabStart) {
-        const cx = landmarks[0].x * mainCanvas.width;
-        const cy = landmarks[0].y * mainCanvas.height;
+        const pieces = [];
+        const imageUrls = [
+            'images/pic1.jpg', 'images/pic2.jpg', 'images/pic3.jpg',
+            'images/pic4.jpg', 'images/pic5.jpg', 'images/pic6.jpg',
+            'images/pic7.jpg', 'images/pic8.jpg', 'images/pic9.jpg'
+        ];
 
-        const dx = (landmarks[0].x - grabStart.x) * mainCanvas.width * FOLLOW_GAIN;
-        const dy = (landmarks[0].y - grabStart.y) * mainCanvas.height * FOLLOW_GAIN;
+        /* ================= 初始化 ================= */
+        for (let i = 0; i < N; i++) {
+            const img = new Image();
+            img.src = imageUrls[i];
+            const fileName = imageUrls[i].split('/').pop();
 
-        stackBase.targetX = baseStart.x + dx;
-        stackBase.targetY = baseStart.y + dy;
-
-        if (lastGrabX !== null) {
-          const vx = cx - lastGrabX;
-          const vy = cy - lastGrabY;
-
-          // 记录最后一次“握拳速度”，供松拳回弹用
-          lastFistVelocity.x = vx;
-          lastFistVelocity.y = vy;
-
-          // 整体惯性
-          stackBase.vx += vx * 0.18;
-          stackBase.vy += vy * 0.18;
-
-          // ===== 单张卡片：位置 + 旋转不同相位抖动 =====
-          pieces.forEach((p, i) => {
-            const phase = i / pieces.length;
-
-            p.vx += vx * (Math.random() * 0.03 + 0.01);
-            p.vy += vy * (Math.random() * 0.03 + 0.01);
-
-            p.vr += (Math.random() - 0.5) * 0.004;
-          });
+            pieces.push({
+                w: pieceW, h: pieceH,
+                x: stackBase.x, y: stackBase.y,
+                targetX: stackBase.x, targetY: stackBase.y,
+                stackOffsetX: (Math.random() - 0.5) * 50,
+                stackOffsetY: (Math.random() - 0.5) * 40,
+                rotation: (Math.random() - 0.5) * 0.25,
+                targetRotation: (Math.random() - 0.5) * 0.25,
+                scale: 1, targetScale: 1,
+                minScale: 1, maxScale: 2,
+                img, fileName,
+                info: photoInfoMap[fileName],
+                textAlpha: 0,
+                vx: 0, vy: 0, vr: 0
+            });
         }
 
-        lastGrabX = cx;
-        lastGrabY = cy;
-      }
+        /* ================= 手势 ================= */
+        let isStacked = true;
+        let lastHandState = 'fist';
+        let handVisible = false;
+        let landmarks = null;
+        let grabStart = null;
+        let baseStart = null;
+        let lastFingerX = null, lastFingerY = null, lastRotateTime = 0;
+        let lastGrabX = null;
+        let lastGrabY = null;
+        let lastFistVelocity = { x: 0, y: 0 };
+        let prevHandState = 'none';
+
+        /* ================= 鼠标控制状态（新增）================= */
+        let mouseX = 0;
+        let mouseY = 0;
+        let mouseHoverActive = false;
+        let lastMouseX = null;
+        let lastMouseY = null;
+
+        let focusedPiece = null;
 
 
 
-      if (!isStacked && state === 'none') {
-        const ix = (1 - landmarks[8].x) * mainCanvas.width;
-        const iy = landmarks[8].y * mainCanvas.height;
 
-        let nearest = null, minD = Infinity;
-        pieces.forEach(p => {
-          p.targetScale = 1;
-          const d = Math.hypot(p.x - ix, p.y - iy);
-          if (d < minD) { minD = d; nearest = p; }
+
+
+
+
+
+        function isFist(lm) { return lm[8].y > lm[5].y; }
+        function isOpen(lm) { return [8, 12, 16, 20].every(i => lm[i].y < lm[i - 3].y); }
+
+        /* ================= MediaPipe ================= */
+        const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
         });
 
-        if (nearest && minD < 200) {
-          nearest.targetScale = nearest.maxScale;
-          nearest.stackOffsetX = 0;
-          nearest.stackOffsetY = -10;
+        hands.onResults(res => {
+            if (!res.multiHandLandmarks?.length) {
+                handVisible = false; landmarks = null;
+                lastFingerX = null; lastFingerY = null;
+                return;
+            }
 
-          // ===== ⭐ 悬浮跟随修复 =====
-          if (lastFingerX !== null && lastFingerY !== null) {
-            const dx = ix - lastFingerX;
-            const dy = iy - lastFingerY;
+            handVisible = true;
+            landmarks = res.multiHandLandmarks[0];
 
-            nearest.targetX += dx * 0.15;
-            nearest.targetY += dy * 0.15;
-            nearest.targetRotation += dx * 0.0008;
+            let state = 'none';
+            if (isFist(landmarks)) state = 'fist';
+            else if (isOpen(landmarks)) state = 'open';
 
-            nearest.vr += (Math.random() - 0.5) * 0.001;
-          }
+            if (state !== lastHandState) {
+                lastHandState = state;
 
-          const idx = pieces.indexOf(nearest);
-          if (idx !== -1) { pieces.splice(idx, 1); pieces.push(nearest); }
+                if (state === 'open') {
+                    isStacked = false;
+                    pieces.forEach(p => {
+                        p.targetX = stackBase.x + (Math.random() - 0.5) * scatterOffset;
+                        p.targetY = stackBase.y + (Math.random() - 0.5) * scatterOffset;
+                    });
+                }
+
+                if (state === 'fist') {
+                    isStacked = true;
+                    grabStart = { x: landmarks[0].x, y: landmarks[0].y };
+                    baseStart = { x: stackBase.x, y: stackBase.y };
+                    pieces.forEach(p => p.targetScale = 1);
+                }
+            }
+
+            // ===== 松拳瞬间：轻微回弹（新增）=====
+            if (prevHandState === 'fist' && state !== 'fist') {
+                // 整体反向回弹
+                stackBase.vx += -lastFistVelocity.x * 0.45;
+                stackBase.vy += -lastFistVelocity.y * 0.45;
+
+                // 每张拍立得不同相位的回弹
+                pieces.forEach(p => {
+                    p.vx += -lastFistVelocity.x * (Math.random() * 0.05);
+                    p.vy += -lastFistVelocity.y * (Math.random() * 0.05);
+                    p.vr += (Math.random() - 0.5) * 0.015;
+                });
+            }
+
+
+            if (isStacked && state === 'fist' && grabStart) {
+                const cx = landmarks[0].x * mainCanvas.width;
+                const cy = landmarks[0].y * mainCanvas.height;
+
+                const dx = (landmarks[0].x - grabStart.x) * mainCanvas.width * FOLLOW_GAIN;
+                const dy = (landmarks[0].y - grabStart.y) * mainCanvas.height * FOLLOW_GAIN;
+
+                stackBase.targetX = baseStart.x + dx;
+                stackBase.targetY = baseStart.y + dy;
+
+                if (lastGrabX !== null) {
+                    const vx = cx - lastGrabX;
+                    const vy = cy - lastGrabY;
+
+                    // 记录最后一次“握拳速度”，供松拳回弹用
+                    lastFistVelocity.x = vx;
+                    lastFistVelocity.y = vy;
+
+                    // 整体惯性
+                    stackBase.vx += vx * 0.18;
+                    stackBase.vy += vy * 0.18;
+
+                    // ===== 单张卡片：位置 + 旋转不同相位抖动 =====
+                    pieces.forEach((p, i) => {
+                        const phase = i / pieces.length;
+
+                        p.vx += vx * (Math.random() * 0.03 + 0.01);
+                        p.vy += vy * (Math.random() * 0.03 + 0.01);
+
+                        p.vr += (Math.random() - 0.5) * 0.004;
+                    });
+                }
+
+                lastGrabX = cx;
+                lastGrabY = cy;
+            }
+
+
+
+            if (!isStacked && state === 'none') {
+                const ix = (1 - landmarks[8].x) * mainCanvas.width;
+                const iy = landmarks[8].y * mainCanvas.height;
+
+                let nearest = null, minD = Infinity;
+                pieces.forEach(p => {
+                    p.targetScale = 1;
+                    const d = Math.hypot(p.x - ix, p.y - iy);
+                    if (d < minD) { minD = d; nearest = p; }
+                });
+
+                if (nearest && minD < 200) {
+                    nearest.targetScale = nearest.maxScale;
+                    nearest.stackOffsetX = 0;
+                    nearest.stackOffsetY = -10;
+
+                    // ===== ⭐ 悬浮跟随修复 =====
+                    if (lastFingerX !== null && lastFingerY !== null) {
+                        const dx = ix - lastFingerX;
+                        const dy = iy - lastFingerY;
+
+                        nearest.targetX += dx * 0.15;
+                        nearest.targetY += dy * 0.15;
+                        nearest.targetRotation += dx * 0.0008;
+
+                        nearest.vr += (Math.random() - 0.5) * 0.001;
+                    }
+
+                    const idx = pieces.indexOf(nearest);
+                    if (idx !== -1) { pieces.splice(idx, 1); pieces.push(nearest); }
+                }
+
+                lastFingerX = ix;
+                lastFingerY = iy;
+            }
+            prevHandState = state;
+        });
+
+        /* ================= 绘制 ================= */
+        function draw() {
+            videoCtx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
+            videoCtx.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
+
+            // ===== 手部骨骼可视化（恢复）=====
+            if (handVisible && landmarks) {
+                drawConnectors(
+                    videoCtx,
+                    landmarks,
+                    HAND_CONNECTIONS,
+                    { color: '#00ffaa', lineWidth: 2 }
+                );
+                drawLandmarks(
+                    videoCtx,
+                    landmarks,
+                    { color: '#ff3355', radius: 3 }
+                );
+            }
+
+
+            mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+            /* ================= 鼠标悬浮选择（新增）================= */
+            if (!isStacked && mouseHoverActive && !handVisible) {
+
+                let nearest = null;
+                let minD = Infinity;
+
+                pieces.forEach(p => {
+                    p.targetScale = 1;
+                    const d = Math.hypot(p.x - mouseX, p.y - mouseY);
+                    if (d < minD) {
+                        minD = d;
+                        nearest = p;
+                    }
+                });
+
+                if (nearest && minD < 220) {
+                    nearest.targetScale = nearest.maxScale;
+                    nearest.stackOffsetX = 0;
+                    nearest.stackOffsetY = -10;
+
+                    if (lastMouseX !== null && lastMouseY !== null) {
+                        const dx = mouseX - lastMouseX;
+                        const dy = mouseY - lastMouseY;
+
+                        nearest.targetX += dx * 0.12;
+                        nearest.targetY += dy * 0.12;
+                        nearest.targetRotation += dx * 0.0006;
+
+                        nearest.vr += (Math.random() - 0.5) * 0.001;
+                    }
+
+                    lastMouseX = mouseX;
+                    lastMouseY = mouseY;
+
+                    // 提升绘制层级
+                    const idx = pieces.indexOf(nearest);
+                    if (idx !== -1) {
+                        pieces.splice(idx, 1);
+                        pieces.push(nearest);
+                    }
+                }
+            }
+
+            pieces.forEach(p => {
+                if (isStacked) {
+                    p.targetX = stackBase.x + p.stackOffsetX;
+                    p.targetY = stackBase.y + p.stackOffsetY;
+                }
+
+                p.x += (p.targetX - p.x) * SMOOTH + p.vx;
+                p.y += (p.targetY - p.y) * SMOOTH + p.vy;
+                p.scale += (p.targetScale - p.scale) * SMOOTH;
+                p.rotation += (p.targetRotation - p.rotation) * SMOOTH + p.vr;
+
+                p.vx *= 0.8; p.vy *= 0.8; p.vr *= 0.85;
+
+                mainCtx.save();
+                mainCtx.translate(p.x, p.y);
+                mainCtx.rotate(p.rotation);
+                mainCtx.scale(p.scale, p.scale);
+
+                const w = p.w, h = p.h;
+                const padTop = 14, padSide = 14, padBottom = 38;
+
+                /* 🌫️ 拍立得投影（恢复） */
+                mainCtx.shadowColor = 'rgba(0,0,0,0.35)';
+                mainCtx.shadowBlur = 22;
+                mainCtx.shadowOffsetY = 10;
+
+                mainCtx.fillStyle = '#fff';
+                mainCtx.beginPath();
+                mainCtx.roundRect(-w / 2, -h / 2, w, h, 8);
+                mainCtx.fill();
+
+                /* 关闭阴影，避免污染图片和文字 */
+                mainCtx.shadowColor = 'transparent';
+                mainCtx.shadowBlur = 0;
+                mainCtx.shadowOffsetY = 0;
+
+                if (p.img.complete) {
+                    mainCtx.drawImage(
+                        p.img,
+                        -w / 2 + padSide,
+                        -h / 2 + padTop,
+                        w - padSide * 2,
+                        h - padTop - padBottom
+                    );
+                }
+
+                /* ===== 文字渐显 ===== */
+                const targetAlpha = p.scale > 1.05 ? 1 : 0;
+                p.textAlpha += (targetAlpha - p.textAlpha) * 0.12;
+
+                if (p.info && p.textAlpha > 0.01) {
+                    mainCtx.globalAlpha = p.textAlpha;
+                    mainCtx.fillStyle = p.info.color;
+                    mainCtx.font = '18px Caveat, cursive';
+
+                    mainCtx.textAlign = 'left';
+                    mainCtx.fillText(p.info.date, -w / 2 + 18, h / 2 - 10);
+
+                    mainCtx.textAlign = 'right';
+                    mainCtx.fillText(p.info.desc, w / 2 - 18, h / 2 - 10);
+                }
+
+                mainCtx.globalAlpha = 1;
+                mainCtx.restore();
+            });
+
+            requestAnimationFrame(draw);
         }
 
-        lastFingerX = ix;
-        lastFingerY = iy;
-      }
-      prevHandState = state;
-    });
+        /* ================= Camera ================= */
+        const camera = new Camera(video, {
+            onFrame: async () => hands.send({ image: video }),
+            width: 640,
+            height: 480
+        });
 
-    /* ================= 绘制 ================= */
-    function draw() {
-      videoCtx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
-      videoCtx.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
-
-      // ===== 手部骨骼可视化（恢复）=====
-      if (handVisible && landmarks) {
-        drawConnectors(
-          videoCtx,
-          landmarks,
-          HAND_CONNECTIONS,
-          { color: '#00ffaa', lineWidth: 2 }
-        );
-        drawLandmarks(
-          videoCtx,
-          landmarks,
-          { color: '#ff3355', radius: 3 }
-        );
-      }
+        camera.start().catch(err => {
+            console.warn('Camera unavailable, hide viewfinder.', err);
+            polaroidCamera.style.display = 'none';
+        });
 
 
-      mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+        /* ================= 鼠标控制模块（新增）================= */
 
-      pieces.forEach(p => {
-        if (isStacked) {
-          p.targetX = stackBase.x + p.stackOffsetX;
-          p.targetY = stackBase.y + p.stackOffsetY;
-        }
+        window.addEventListener('mousemove', e => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            mouseHoverActive = true;
+        });
 
-        p.x += (p.targetX - p.x) * SMOOTH + p.vx;
-        p.y += (p.targetY - p.y) * SMOOTH + p.vy;
-        p.scale += (p.targetScale - p.scale) * SMOOTH;
-        p.rotation += (p.targetRotation - p.rotation) * SMOOTH + p.vr;
+        window.addEventListener('mouseleave', () => {
+            mouseHoverActive = false;
+            lastMouseX = null;
+            lastMouseY = null;
+        });
 
-        p.vx *= 0.8; p.vy *= 0.8; p.vr *= 0.85;
 
-        mainCtx.save();
-        mainCtx.translate(p.x, p.y);
-        mainCtx.rotate(p.rotation);
-        mainCtx.scale(p.scale, p.scale);
+        window.addEventListener('click', () => {
+            // 鼠标点击：切换聚合 / 扩散
+            isStacked = !isStacked;
 
-        const w = p.w, h = p.h;
-        const padTop = 14, padSide = 14, padBottom = 38;
+            if (!isStacked) {
+                pieces.forEach(p => {
+                    p.targetX = stackBase.x + (Math.random() - 0.5) * scatterOffset;
+                    p.targetY = stackBase.y + (Math.random() - 0.5) * scatterOffset;
+                });
+            } else {
+                pieces.forEach(p => {
+                    p.targetScale = 1;
+                });
+            }
+        });
 
-        /* 🌫️ 拍立得投影（恢复） */
-        mainCtx.shadowColor = 'rgba(0,0,0,0.35)';
-        mainCtx.shadowBlur = 22;
-        mainCtx.shadowOffsetY = 10;
+        draw();
 
-        mainCtx.fillStyle = '#fff';
-        mainCtx.beginPath();
-        mainCtx.roundRect(-w / 2, -h / 2, w, h, 8);
-        mainCtx.fill();
-
-        /* 关闭阴影，避免污染图片和文字 */
-        mainCtx.shadowColor = 'transparent';
-        mainCtx.shadowBlur = 0;
-        mainCtx.shadowOffsetY = 0;
-
-        if (p.img.complete) {
-          mainCtx.drawImage(
-            p.img,
-            -w / 2 + padSide,
-            -h / 2 + padTop,
-            w - padSide * 2,
-            h - padTop - padBottom
-          );
-        }
-
-        /* ===== 文字渐显 ===== */
-        const targetAlpha = p.scale > 1.05 ? 1 : 0;
-        p.textAlpha += (targetAlpha - p.textAlpha) * 0.12;
-
-        if (p.info && p.textAlpha > 0.01) {
-          mainCtx.globalAlpha = p.textAlpha;
-          mainCtx.fillStyle = p.info.color;
-          mainCtx.font = '18px Caveat, cursive';
-
-          mainCtx.textAlign = 'left';
-          mainCtx.fillText(p.info.date, -w / 2 + 18, h / 2 - 10);
-
-          mainCtx.textAlign = 'right';
-          mainCtx.fillText(p.info.desc, w / 2 - 18, h / 2 - 10);
-        }
-
-        mainCtx.globalAlpha = 1;
-        mainCtx.restore();
-      });
-
-      requestAnimationFrame(draw);
-    }
-
-    /* ================= Camera ================= */
-    const camera = new Camera(video, {
-      onFrame: async () => hands.send({ image: video }),
-      width: 640, height: 480
-    });
-    camera.start();
-    draw();
-
-  </script>
+    </script>
 
 </body>
 
