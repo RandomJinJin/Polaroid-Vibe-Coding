@@ -3,14 +3,18 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Interactive Polaroid Stack</title>
+    <title>Polaroid</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 
     <style>
         body {
             margin: 0;
-            background: #FFE4E1;
+            background-image: url("assets/bg.jpg");
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             overflow: hidden;
         }
 
@@ -76,15 +80,16 @@
     <script>
         /* ================= 内嵌照片信息 ================= */
         const photoInfoMap = {
-            "pic1.jpg": { date: "2023.10.05", desc: "Info1", color: "#555555" },
-            "pic2.jpg": { date: "2023.11.12", desc: "Info2", color: "#1a4e8a" },
-            "pic3.jpg": { date: "2023.12.24", desc: "Info3", color: "#c92a2a" },
-            "pic4.jpg": { date: "2024.01.01", desc: "Info4", color: "#ffcc00" },
-            "pic5.jpg": { date: "2024.02.14", desc: "Info5", color: "#FA8072" },
-            "pic6.jpg": { date: "2024.03.08", desc: "Info6", color: "#ff6699" },
-            "pic7.jpg": { date: "2024.04.01", desc: "Info7", color: "#90EE90" },
-            "pic8.jpg": { date: "2024.05.01", desc: "Info8", color: "#6495ED" },
-            "pic9.jpg": { date: "2024.06.01", desc: "Info9", color: "#48D1CC" }
+            "pic1.jpg": { date: "2025.10.11", desc: " ", color: "#555555" },
+            "pic2.jpg": { date: "2023.10.20", desc: " ", color: "#1a4e8a" },
+            "pic3.jpg": { date: "2025.11.12", desc: " ", color: "#c92a2a" },
+            "pic4.jpg": { date: "2025.11.13", desc: " ", color: "#ffcc00" },
+            "pic5.jpg": { date: "2025.11.14", desc: " ", color: "#FA8072" },
+            "pic6.jpg": { date: "2025.11.26", desc: " ", color: "#ff6699" },
+            "pic7.jpg": { date: "2025.12.13", desc: " ", color: "#90EE90" },
+            "pic8.jpg": { date: "2025.12.13", desc: " ", color: "#6495ED" },
+            "pic9.jpg": { date: "2025.12.14", desc: " ", color: "#48D1CC" },
+            "pic10.jpg": { date: "2025.12.17", desc: " ", color: "#48D1CC" }
         };
 
         /* ================= Canvas ================= */
@@ -119,7 +124,7 @@
         const INERTIA_DAMP = 0.85;
         const SMOOTH = 0.15;
 
-        const N = 9;
+        const N = 10;
         const pieceW = 300;
         const pieceH = 200;
         const scatterOffset = 700;
@@ -135,8 +140,11 @@
         const imageUrls = [
             'images/pic1.jpg', 'images/pic2.jpg', 'images/pic3.jpg',
             'images/pic4.jpg', 'images/pic5.jpg', 'images/pic6.jpg',
-            'images/pic7.jpg', 'images/pic8.jpg', 'images/pic9.jpg'
+            'images/pic7.jpg', 'images/pic8.jpg', 'images/pic9.jpg',
+            'images/pic10.jpg'
         ];
+
+
 
         /* ================= 初始化 ================= */
         for (let i = 0; i < N; i++) {
@@ -182,12 +190,6 @@
         let lastMouseY = null;
 
         let focusedPiece = null;
-
-
-
-
-
-
 
 
 

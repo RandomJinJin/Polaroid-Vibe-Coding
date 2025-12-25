@@ -10,7 +10,16 @@
   <style>
     body {
       margin: 0;
-      background: #FFE4E1;
+      background-image: url("assets/bg.jpg");
+      /* ← 改成你的 jpg 路径 */
+      background-size: cover;
+      /* 铺满屏幕 */
+      background-position: center center;
+      /* 居中 */
+      background-repeat: no-repeat;
+      /* 不重复 */
+      background-attachment: fixed;
+      /* 视差感（可选） */
       overflow: hidden;
     }
 
@@ -55,7 +64,6 @@
       height: 100%;
       display: block;
     }
-
   </style>
 </head>
 
@@ -117,7 +125,7 @@
     const INERTIA_DAMP = 0.85;
     const SMOOTH = 0.15;
 
-    const N = 9;
+    const N = 10;
     const pieceW = 300;
     const pieceH = 200;
     const scatterOffset = 700;
@@ -133,8 +141,10 @@
     const imageUrls = [
       'images/pic1.jpg', 'images/pic2.jpg', 'images/pic3.jpg',
       'images/pic4.jpg', 'images/pic5.jpg', 'images/pic6.jpg',
-      'images/pic7.jpg', 'images/pic8.jpg', 'images/pic9.jpg'
+      'images/pic7.jpg', 'images/pic8.jpg', 'images/pic9.jpg',
+      'images/pic10.jpg' // ← 新增
     ];
+
 
     /* ================= 初始化 ================= */
     for (let i = 0; i < N; i++) {
